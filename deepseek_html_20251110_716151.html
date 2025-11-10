@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pendataan Alumni PPMQ Al-Mu'min Tasikmalaya</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sheetjs/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
             background-color: #f8f9fa;
@@ -94,10 +94,21 @@
             border-radius: 20px;
             font-size: 0.9rem;
             cursor: pointer;
+            transition: all 0.3s;
         }
         .korwil-tag:hover {
             background-color: #2a5298;
             color: white;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #dee2e6;
         }
     </style>
 </head>
@@ -150,7 +161,7 @@
                             <h3 class="card-title mb-0">Data Alumni</h3>
                             <div>
                                 <button id="exportBtn" class="btn btn-success">
-                                    <i class="fas fa-file-excel"></i> Ekspor ke Excel
+                                    Ekspor ke Excel
                                 </button>
                             </div>
                         </div>
@@ -168,6 +179,11 @@
                                     <!-- Data akan diisi oleh JavaScript -->
                                 </tbody>
                             </table>
+                            <div id="emptyState" class="empty-state d-none">
+                                <i>📊</i>
+                                <h4>Belum ada data alumni</h4>
+                                <p>Mulai tambahkan data alumni menggunakan form di atas</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -182,15 +198,10 @@
 
     <script>
         // Inisialisasi data alumni dari localStorage atau data default
-        let alumniData = JSON.parse(localStorage.getItem('alumniData')) || [
-            { id: 1, nama: "Ahmad Fauzi", korwil: "Korwil 1" },
-            { id: 2, nama: "Siti Nurhaliza", korwil: "Korwil 2" },
-            { id: 3, nama: "Budi Santoso", korwil: "Korwil 3" }
-        ];
+        let alumniData = JSON.parse(localStorage.getItem('alumniData')) || [];
 
         // Inisialisasi daftar korwil dari localStorage atau ekstrak dari data alumni
-        let korwilList = JSON.parse(localStorage.getItem('korwilList')) || 
-            [...new Set(alumniData.map(alumni => alumni.korwil))];
+        let korwilList = JSON.parse(localStorage.getItem('korwilList')) || [];
 
         // Fungsi untuk menyimpan daftar korwil ke localStorage
         function saveKorwilList() {
@@ -201,6 +212,11 @@
         function displayKorwilTags() {
             const tagsContainer = document.getElementById('korwilTags');
             tagsContainer.innerHTML = '';
+            
+            if (korwilList.length === 0) {
+                tagsContainer.innerHTML = '<p class="text-muted">Belum ada korwil yang tersimpan</p>';
+                return;
+            }
             
             korwilList.forEach(korwil => {
                 const tag = document.createElement('span');
@@ -228,6 +244,15 @@
         // Fungsi untuk menampilkan data alumni di tabel
         function displayAlumniData() {
             const tableBody = document.getElementById('alumniTableBody');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (alumniData.length === 0) {
+                tableBody.innerHTML = '';
+                emptyState.classList.remove('d-none');
+                return;
+            }
+            
+            emptyState.classList.add('d-none');
             tableBody.innerHTML = '';
 
             alumniData.forEach((alumni, index) => {
@@ -273,22 +298,38 @@
 
         // Fungsi untuk mengekspor data ke Excel
         function exportToExcel() {
-            // Membuat worksheet dari data alumni
-            const ws = XLSX.utils.json_to_sheet(alumniData.map(a => ({ Nama: a.nama, Korwil: a.korwil })));
+            if (alumniData.length === 0) {
+                alert('Tidak ada data untuk diekspor!');
+                return;
+            }
             
-            // Membuat workbook dan menambahkan worksheet
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Alumni PPMQ");
-            
-            // Mengekspor ke file Excel
-            XLSX.writeFile(wb, "Data_Alumni_PPMQ_Al-Mumin_Tasikmalaya.xlsx");
+            try {
+                // Membuat worksheet dari data alumni
+                const worksheet = XLSX.utils.json_to_sheet(alumniData.map(a => ({ 
+                    "No": alumniData.indexOf(a) + 1,
+                    "Nama": a.nama, 
+                    "Korwil": a.korwil 
+                })));
+                
+                // Membuat workbook dan menambahkan worksheet
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Alumni PPMQ");
+                
+                // Mengekspor ke file Excel
+                XLSX.writeFile(workbook, "Data_Alumni_PPMQ_Al-Mumin_Tasikmalaya.xlsx");
+                
+                alert('Data berhasil diekspor ke Excel!');
+            } catch (error) {
+                console.error('Error saat mengekspor data:', error);
+                alert('Terjadi kesalahan saat mengekspor data. Silakan coba lagi.');
+            }
         }
 
         // Event listener untuk form submit
         document.getElementById('alumniForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const nama = document.getElementById('nama').value;
-            const korwil = document.getElementById('korwil').value;
+            const nama = document.getElementById('nama').value.trim();
+            const korwil = document.getElementById('korwil').value.trim();
             
             if (!nama || !korwil) {
                 alert('Harap isi semua field!');
